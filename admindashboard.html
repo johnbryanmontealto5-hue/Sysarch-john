@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CCS Sit-in Monitoring</title>
+    <script>
+        (function() {
+            var admin = localStorage.getItem('ccs_admin_current');
+            if (!admin) { window.location.href = 'adminlogin.html'; }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-body">
+    <header class="admin-header">
+        <div class="header-left">
+            <img src="images/ucmainccslogo.png" alt="UC Logo" class="footer-logo">
+            <h1>College of Computer Studies Admin</h1>
+        </div>
+        <nav class="admin-nav">
+            <a href="admindashboard.html" class="active">Home</a>
+            <a href="#" id="nav-search">Search</a>
+            <a href="adminstudents.html">Students</a>
+            <a href="adminsitin.html">Sit-in</a>
+            <a href="adminrecords.html">View Sit-in Records</a>
+            <a href="adminfeedback.html">Feedback Reports</a>
+            <a href="adminreservation.html">Reservation</a>
+            <a href="adminlabs.html">Lab Management</a>
+            <a href="#" id="admin-logout-btn" class="logout-btn">Log out</a>
+        </nav>
+    </header>
+
+    <main class="admin-main">
+        <!-- Quick Action Cards -->
+        <div class="dash-quick-actions">
+            <a href="adminrecords.html" class="dash-qcard">
+                <span class="dash-qicon">GR</span>
+                <div class="dash-qinfo">
+                    <strong>Generate Reports</strong>
+                    <p>Export sit-in records and analytics to CSV</p>
+                </div>
+            </a>
+            <a href="adminreservation.html" class="dash-qcard">
+                <span class="dash-qicon">VR</span>
+                <div class="dash-qinfo">
+                    <strong>View Reservations</strong>
+                    <p>Manage and approve lab reservations</p>
+                </div>
+            </a>
+            <a href="#leaderboard-section" class="dash-qcard">
+                <span class="dash-qicon">LB</span>
+                <div class="dash-qinfo">
+                    <strong>Leaderboard</strong>
+                    <p>Top students by sit-in sessions</p>
+                </div>
+            </a>
+            <a href="#analytics-section" class="dash-qcard">
+                <span class="dash-qicon">AN</span>
+                <div class="dash-qinfo">
+                    <strong>Analytics</strong>
+                    <p>Usage statistics and insights</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Reservation Control Toggle -->
+        <div class="reservation-toggle-bar" id="reservation-toggle-bar">
+            <div class="rtb-info">
+                <strong>Student Reservations</strong>
+                <span class="rtb-status" id="rtb-status-text">Enabled</span>
+            </div>
+            <button class="btn rtb-toggle-btn" id="rtb-toggle-btn">Disable Reservations</button>
+        </div>
+
+        <div class="admin-dashboard-grid">
+            <!-- Statistics Panel -->
+            <section class="admin-panel statistics-panel">
+                <div class="panel-header">
+                    <h3>Statistics</h3>
+                </div>
+                <div class="stats-summary">
+                    <a href="adminrecords.html" class="stat-box-link">
+                        <div class="stat-box">
+                            <span class="stat-label">Students Registered:</span>
+                            <span class="stat-value" id="total-students">0</span>
+                        </div>
+                    </a>
+                    <a href="adminrecords.html" class="stat-box-link">
+                        <div class="stat-box">
+                            <span class="stat-label">Currently Sit-In:</span>
+                            <span class="stat-value highlight" id="current-sitin">0</span>
+                        </div>
+                    </a>
+                    <a href="adminrecords.html" class="stat-box-link">
+                        <div class="stat-box">
+                            <span class="stat-label">Total Sit-Ins:</span>
+                            <span class="stat-value" id="total-sitins">0</span>
+                        </div>
+                    </a>
+                </div>
+                <div class="chart-container">
+                    <canvas id="courseChart"></canvas>
+                </div>
+                <div class="course-legend" id="course-legend"></div>
+            </section>
+
+            <!-- Announcement Panel -->
+            <section class="admin-panel announcement-panel">
+                <div class="panel-header">
+                    <h3>Announcement</h3>
+                </div>
+                <form id="announcementForm">
+                    <div class="field-group">
+                        <label for="announcement-text">New Announcement</label>
+                        <textarea id="announcement-text" rows="4" placeholder="Write your announcement here..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn admin-submit-btn">Submit</button>
+                </form>
+                <div class="announcements-list" id="announcements-list">
+                    <h4>Posted Announcement</h4>
+                </div>
+            </section>
+        </div>
+
+        <!-- Analytics Section -->
+        <section class="admin-panel" id="analytics-section">
+            <div class="panel-header">
+                <h3>Analytics</h3>
+            </div>
+            <div class="analytics-cards-grid">
+                <div class="analytics-card">
+                    <span class="analytics-icon">ST</span>
+                    <div class="analytics-info">
+                        <span class="analytics-value" id="ana-total-students">0</span>
+                        <span class="analytics-label">Total Students</span>
+                    </div>
+                </div>
+                <div class="analytics-card">
+                    <span class="analytics-icon">AS</span>
+                    <div class="analytics-info">
+                        <span class="analytics-value" id="ana-active-sitins">0</span>
+                        <span class="analytics-label">Active Sit-ins</span>
+                    </div>
+                </div>
+                <div class="analytics-card">
+                    <span class="analytics-icon">CS</span>
+                    <div class="analytics-info">
+                        <span class="analytics-value" id="ana-completed-sitins">0</span>
+                        <span class="analytics-label">Completed Sessions</span>
+                    </div>
+                </div>
+                <div class="analytics-card">
+                    <span class="analytics-icon">PR</span>
+                    <div class="analytics-info">
+                        <span class="analytics-value" id="ana-pending-reservations">0</span>
+                        <span class="analytics-label">Pending Reservations</span>
+                    </div>
+                </div>
+                <div class="analytics-card">
+                    <span class="analytics-icon">TH</span>
+                    <div class="analytics-info">
+                        <span class="analytics-value" id="ana-total-hours">0h</span>
+                        <span class="analytics-label">Total Lab Hours</span>
+                    </div>
+                </div>
+                <div class="analytics-card">
+                    <span class="analytics-icon">AL</span>
+                    <div class="analytics-info">
+                        <span class="analytics-value" id="ana-available-labs">0</span>
+                        <span class="analytics-label">Available Labs</span>
+                    </div>
+                </div>
+                <div class="analytics-card">
+                    <span class="analytics-icon">FB</span>
+                    <div class="analytics-info">
+                        <span class="analytics-value" id="ana-total-feedback">0</span>
+                        <span class="analytics-label">Total Feedback</span>
+                    </div>
+                </div>
+                <div class="analytics-card">
+                    <span class="analytics-icon">AR</span>
+                    <div class="analytics-info">
+                        <span class="analytics-value" id="ana-avg-rating">0.0</span>
+                        <span class="analytics-label">Avg Rating</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Leaderboard Section -->
+        <section class="admin-panel" id="leaderboard-section">
+            <div class="panel-header leaderboard-header">
+                <h3>Leaderboard</h3>
+                <div class="lb-controls">
+                    <input type="text" id="leaderboard-search" placeholder="Search by name or ID..." class="lb-search-input" aria-label="Search leaderboard by name or ID">
+                    <select id="leaderboard-sort" class="lb-sort-select" aria-label="Sort leaderboard">
+                        <option value="sessions">Sort by Sessions</option>
+                        <option value="hours">Sort by Hours</option>
+                    </select>
+                </div>
+            </div>
+            <div id="leaderboard-list" class="leaderboard-list"></div>
+        </section>
+
+        <!-- Sessions Table -->
+        <section class="admin-panel" id="sessions-table-section">
+            <div class="panel-header">
+                <h3>Sessions Table</h3>
+            </div>
+            <div class="admin-table-container">
+                <table class="admin-data-table" id="admin-sessions-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>ID Number</th>
+                            <th>Name</th>
+                            <th>Lab</th>
+                            <th>Purpose</th>
+                            <th>Time In</th>
+                            <th>Time Out</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-sessions-tbody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Search Modal -->
+    <div class="admin-modal" id="search-modal">
+        <div class="admin-modal-content search-modal-content">
+            <div class="modal-header">
+                <h3>Search Student</h3>
+                <button class="modal-close" id="search-modal-close">&times;</button>
+            </div>
+            <form id="search-form">
+                <div class="field-group">
+                    <input type="text" id="search-input" placeholder="Search by ID or Name..." aria-label="Search student by ID or name" required>
+                </div>
+                <button type="submit" class="btn admin-submit-btn">Search</button>
+            </form>
+            <div id="search-results" class="search-results"></div>
+        </div>
+    </div>
+
+    <footer class="footer admin-footer">
+        <img src="images/uclogo.png" alt="UC Logo" class="footer-logo">
+        &copy; Montealto 2026 Sit-In Monitoring System - Admin Portal. All rights reserved.
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

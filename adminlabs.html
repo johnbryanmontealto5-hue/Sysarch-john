@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Management - CCS Admin</title>
+    <script>
+        (function() {
+            var admin = localStorage.getItem('ccs_admin_current');
+            if (!admin) { window.location.href = 'adminlogin.html'; }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-body">
+    <header class="admin-header">
+        <div class="header-left">
+            <img src="images/ucmainccslogo.png" alt="UC Logo" class="footer-logo">
+            <h1>College of Computer Studies Admin</h1>
+        </div>
+        <nav class="admin-nav">
+            <a href="admindashboard.html">Home</a>
+            <a href="#" id="nav-search">Search</a>
+            <a href="adminstudents.html">Students</a>
+            <a href="adminsitin.html">Sit-in</a>
+            <a href="adminrecords.html">View Sit-in Records</a>
+            <a href="adminfeedback.html">Feedback Reports</a>
+            <a href="adminreservation.html">Reservation</a>
+            <a href="adminlabs.html" class="active">Lab Management</a>
+            <a href="#" id="admin-logout-btn" class="logout-btn">Log out</a>
+        </nav>
+    </header>
+
+    <main class="admin-main">
+        <section class="admin-page-header">
+            <h2>Lab Room Management</h2>
+            <button class="btn admin-submit-btn push-right" id="add-lab-btn">+ Add Lab Room</button>
+        </section>
+
+        <section class="admin-content-section">
+            <div class="lab-management-grid" id="lab-management-grid">
+                <!-- Lab management cards will be loaded here -->
+            </div>
+        </section>
+
+        <section class="admin-page-header section-spaced">
+            <h2>Lab Occupancy Overview</h2>
+        </section>
+
+        <section class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <span class="stat-icon">LB</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="total-labs">12</span>
+                    <span class="stat-label">Total Labs</span>
+                </div>
+            </div>
+            <div class="admin-stat-card">
+                <span class="stat-icon">AL</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="available-labs">0</span>
+                    <span class="stat-label">Available</span>
+                </div>
+            </div>
+            <div class="admin-stat-card">
+                <span class="stat-icon">SI</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="total-occupancy">0</span>
+                    <span class="stat-label">Total Occupied</span>
+                </div>
+            </div>
+            <div class="admin-stat-card">
+                <span class="stat-icon">MT</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="maintenance-labs">0</span>
+                    <span class="stat-label">Maintenance</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Lab Status Modal -->
+    <div class="admin-modal" id="lab-status-modal">
+        <div class="admin-modal-content">
+            <div class="modal-header">
+                <h3>Update Lab Status</h3>
+                <button class="modal-close" id="lab-modal-close">&times;</button>
+            </div>
+            <form id="lab-status-form">
+                <input type="hidden" id="edit-lab-id">
+                <div class="field-group">
+                    <label for="lab-name-display">Lab Name</label>
+                    <input type="text" id="lab-name-display" title="Lab name" placeholder="Lab name" aria-label="Lab name" readonly>
+                </div>
+                <div class="field-group">
+                    <label for="lab-status-select">Status</label>
+                    <select id="lab-status-select" required>
+                        <option value="available">Available</option>
+                        <option value="occupied">Full (Occupied)</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label for="lab-capacity">Capacity</label>
+                    <input type="number" id="lab-capacity" min="1" max="100" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn modal-cancel-btn" id="lab-cancel">Cancel</button>
+                    <button type="submit" class="btn admin-submit-btn">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Lab Modal -->
+    <div class="admin-modal" id="add-lab-modal">
+        <div class="admin-modal-content">
+            <div class="modal-header">
+                <h3 id="add-lab-modal-title">Add New Lab Room</h3>
+                <button class="modal-close" id="add-lab-modal-close">&times;</button>
+            </div>
+            <form id="add-lab-form">
+                <input type="hidden" id="add-edit-lab-id">
+                <div class="field-group">
+                    <label for="add-lab-name">Lab Name</label>
+                    <input type="text" id="add-lab-name" placeholder="e.g., Lab 535" required>
+                </div>
+                <div class="field-group">
+                    <label for="add-lab-capacity">Capacity</label>
+                    <input type="number" id="add-lab-capacity" min="1" max="100" value="40" required>
+                </div>
+                <div class="field-group">
+                    <label for="add-lab-status">Initial Status</label>
+                    <select id="add-lab-status" required>
+                        <option value="available">Available</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn modal-cancel-btn" id="add-lab-cancel">Cancel</button>
+                    <button type="submit" class="btn admin-submit-btn" id="add-lab-submit-btn">Add Lab</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Software Modal -->
+    <div class="admin-modal" id="software-modal">
+        <div class="admin-modal-content">
+            <div class="modal-header">
+                <h3 id="software-modal-title">Manage Software</h3>
+                <button class="modal-close" id="software-modal-close">&times;</button>
+            </div>
+            <input type="hidden" id="software-lab-id">
+            <div class="field-group">
+                <label for="software-recommendation-profile">AI Recommendation</label>
+                <div class="software-action-row">
+                    <select id="software-recommendation-profile" aria-label="Select lab focus for software recommendation">
+                        <option value="">Select lab focus</option>
+                        <option value="programming">Programming</option>
+                        <option value="web">Web Development</option>
+                        <option value="mobile">Mobile Development</option>
+                        <option value="database">Database</option>
+                        <option value="networking">Networking</option>
+                        <option value="design">Design / Prototyping</option>
+                    </select>
+                    <button type="button" class="btn admin-submit-btn" id="software-recommend-btn">Recommend</button>
+                </div>
+            </div>
+            <fieldset class="field-group software-fieldset">
+                <legend>Installed Software</legend>
+                <div class="software-checklist" id="software-checklist">
+                    <div class="software-option">
+                        <input type="checkbox" id="software-vscode" value="Visual Studio Code">
+                        <label for="software-vscode">Visual Studio Code</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-python" value="Python">
+                        <label for="software-python">Python</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-nodejs" value="Node.js">
+                        <label for="software-nodejs">Node.js</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-eclipse" value="Eclipse">
+                        <label for="software-eclipse">Eclipse</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-netbeans" value="NetBeans">
+                        <label for="software-netbeans">NetBeans</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-android-studio" value="Android Studio">
+                        <label for="software-android-studio">Android Studio</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-java-jdk" value="Java JDK">
+                        <label for="software-java-jdk">Java JDK</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-git" value="Git">
+                        <label for="software-git">Git</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-mysql-workbench" value="MySQL Workbench">
+                        <label for="software-mysql-workbench">MySQL Workbench</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-vmware" value="VMware">
+                        <label for="software-vmware">VMware</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-office" value="Microsoft Office">
+                        <label for="software-office">Microsoft Office</label>
+                    </div>
+                    <div class="software-option">
+                        <input type="checkbox" id="software-packet-tracer" value="Cisco Packet Tracer">
+                        <label for="software-packet-tracer">Cisco Packet Tracer</label>
+                    </div>
+                </div>
+            </fieldset>
+            <div class="field-group field-spaced">
+                <label for="software-custom">Add Custom Software</label>
+                <div class="software-action-row">
+                    <input type="text" id="software-custom" placeholder="e.g., Figma, Arduino IDE...">
+                    <button type="button" class="btn admin-submit-btn" id="software-add-custom-btn">Add</button>
+                </div>
+                <div id="software-custom-list" class="software-custom-list"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn modal-cancel-btn" id="software-cancel">Cancel</button>
+                <button type="button" class="btn admin-submit-btn" id="software-save-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div class="admin-modal" id="search-modal">
+        <div class="admin-modal-content search-modal-content">
+            <div class="modal-header">
+                <h3>Search Student</h3>
+                <button class="modal-close" id="search-modal-close">&times;</button>
+            </div>
+            <form id="search-form">
+                <div class="field-group">
+                    <input type="text" id="search-input" placeholder="Search by ID or Name..." aria-label="Search student by ID or name" required>
+                </div>
+                <button type="submit" class="btn admin-submit-btn">Search</button>
+            </form>
+            <div id="search-results" class="search-results"></div>
+        </div>
+    </div>
+
+    <footer class="footer admin-footer">
+        <img src="images/uclogo.png" alt="UC Logo" class="footer-logo">
+        &copy; Montealto 2026 Sit-In Monitoring System - Admin Portal. All rights reserved.
+    </footer>
+    <script src="script.js"></script>
+</body>
+</html>
