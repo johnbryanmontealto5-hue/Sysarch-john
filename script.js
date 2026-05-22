@@ -1223,8 +1223,141 @@ const labModal = document.getElementById('lab-avail-modal');
 }
 
 // ============================================
-// Reserve Lab Modal (Landing Page)
+// Reservation Date Validation
 // ============================================
+
+const RESERVATION_CONFIG = {
+    MAX_ADVANCE_DAYS: 30,        // students may book up to 30 days in advance
+    OPERATING_START_HOUR: 8,     // labs open at 08:00
+    OPERATING_END_HOUR: 21,      // labs close at 21:00 (9 PM)
+    MAX_RESERVATION_HOURS: 5,    // max single reservation duration
+};
+
+/**
+ * Validate reservation date/time fields.
+ * Works with both student-facing objects and admin reservation objects.
+ * @param {{ date?: string|null, startTime?: string|null, endTime?: string|null, lab?: string|null, id?: number|null }} data - reservation fields
+ * @param {number} [excludeId=null]          - reservation ID to exclude from overlap check (editing an existing entry)
+ * @returns {{ valid: boolean, errors: string[] }}
+ */
+function validateReservationDates(data, excludeId) {
+    var _excludeId = excludeId !== undefined ? excludeId : (data.id || null);
+    var allReservations = getReservations();
+
+    var errors = [];
+
+    // ── Required fields ────────────────────────────────────────────────────
+    if (!data.date || !data.startTime || !data.endTime || !data.lab) {
+        return { valid: false, errors: ['Please fill in all required reservation fields.'] };
+    }
+
+    // ── Date bounds ────────────────────────────────────────────────────────
+    var selectedDate   = new Date(data.date + 'T00:00:00');
+    var today          = new Date(); today.setHours(0, 0, 0, 0);
+    var advanceLimit   = new Date(today);
+    advanceLimit.setDate(today.getDate() + RESERVATION_CONFIG.MAX_ADVANCE_DAYS);
+
+    if (isNaN(selectedDate.getTime())) {
+        errors.push('Please enter a valid date.');
+    } else if (selectedDate < today) {
+        errors.push('Reservation date cannot be in the past.');
+    } else if (selectedDate > advanceLimit) {
+        errors.push(
+            'Reservations can only be made up to ' +
+            RESERVATION_CONFIG.MAX_ADVANCE_DAYS +
+            ' days in advance.'
+        );
+    }
+
+    // ── Time parsing ───────────────────────────────────────────────────────
+    function toMinutes(t) {
+        var parts = (t || '').split(':');
+        return (parts.length === 2)
+            ? (parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10))
+            : NaN;
+    }
+
+    var startM  = toMinutes(data.startTime);
+    var endM    = toMinutes(data.endTime);
+    var openM   = RESERVATION_CONFIG.OPERATING_START_HOUR * 60;
+    var closeM  = RESERVATION_CONFIG.OPERATING_END_HOUR   * 60;
+
+    if (isNaN(startM) || isNaN(endM)) {
+        errors.push('Please enter valid start and end times.');
+    } else {
+        if (startM < openM)  errors.push('Start time cannot be before 08:00 AM.');
+        if (endM   > closeM) errors.push('End time cannot be after 09:00 PM.');
+        if (endM <= startM)  errors.push('End time must be after start time.');
+
+        var durMins = endM - startM;
+        var maxMins = RESERVATION_CONFIG.MAX_RESERVATION_HOURS * 60;
+        if (durMins > maxMins) {
+            errors.push(
+                'Reservation duration cannot exceed ' +
+                RESERVATION_CONFIG.MAX_RESERVATION_HOURS +
+                ' hours.'
+            );
+        }
+    }
+
+    // ── Lab overlap check ──────────────────────────────────────────────────
+    if (data.date && data.lab && !isNaN(startM) && !isNaN(endM)) {
+        var overlaps = allReservations.filter(function (r) {
+            if (r.status === 'rejected' || r.status === 'cancelled') return false;
+            if (r.lab !== data.lab)       return false;
+            if (r.date  !== data.date)    return false;
+            // Exclude the current reservation when editing
+            if (_excludeId !== null && r.id === _excludeId) return false;
+
+            var rStart  = toMinutes(r.startTime);
+            var rEnd    = toMinutes(r.endTime);
+            if (isNaN(rStart) || isNaN(rEnd)) return false;
+
+            return (startM < rEnd) && (endM > rStart);
+        });
+
+        if (overlaps.length > 0) {
+            var sorted = overlaps.slice().sort(function (a, b) {
+                return toMinutes(a.startTime) - toMinutes(b.startTime);
+            });
+            var msgs = sorted.map(function (r) {
+                return r.startTime + ' – ' + r.endTime + ' (' + r.studentName + ')';
+            });
+            errors.push(
+                'The following reservation(s) for ' + data.lab +
+                ' already overlap with this time:\n  - ' + msgs.join('\n  - ')
+            );
+        }
+    }
+
+    return { valid: errors.length === 0, errors: errors };
+}
+
+/** Show multiple errors inside an inline reservation error container. */
+function showReservationErrors(errors) {
+    // Look for both student and admin modal error containers
+    var containerIds = ['reserve-errors', 'admin-res-errors'];
+    var container = null;
+    for (var _i = 0; _i < containerIds.length; _i++) {
+        container = document.getElementById(containerIds[_i]);
+        if (container) break;
+    }
+    if (!container) return;
+
+    container.innerHTML = errors.map(function (e) {
+        return '<div class="form-error-item">' + escapeHTML(e) + '</div>';
+    }).join('');
+    container.style.display = 'block';
+}
+
+/** Hide (clear) all reservation inline error containers. */
+function hideReservationErrors() {
+    ['reserve-errors', 'admin-res-errors'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) { el.innerHTML = ''; el.style.display = 'none'; }
+    });
+}
+
 
 function openReserveModal(user) {
     if (!isReservationEnabled()) {
@@ -1279,10 +1412,13 @@ function openReserveModal(user) {
 
     const closeBtn = document.getElementById('reserve-modal-close');
     const cancelBtn = document.getElementById('reserve-modal-cancel');
-    const closeModal = () => { modal.style.display = 'none'; };
+    const closeModal = () => { modal.style.display = 'none'; hideReservationErrors(); };
     closeBtn.onclick = closeModal;
     cancelBtn.onclick = closeModal;
-    modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+    modal.onclick = (e) => { if (e.target === modal) { closeModal(); } };
+
+    // Clear any stale error when the form is opened
+    hideReservationErrors();
 
     const form = document.getElementById('reserve-form');
     form.onsubmit = function(e) {
@@ -1295,17 +1431,27 @@ function openReserveModal(user) {
         const startTime = document.getElementById('reserve-start-time')?.value || null;
         const endTime = document.getElementById('reserve-end-time')?.value || null;
 
-        if (!selectedLabId) { showMessage('Please select a lab.', 'error'); return; }
-        if (!purpose) { showMessage('Please enter a purpose.', 'error'); return; }
-        if (!resDate) { showMessage('Please select a date.', 'error'); return; }
-        if (!startTime) { showMessage('Please enter a start time.', 'error'); return; }
-        if (!endTime) { showMessage('Please enter an end time.', 'error'); return; }
-        if (startTime >= endTime) { showMessage('End time must be after start time.', 'error'); return; }
+        // Date/Time validation
+        var validation = validateReservationDates({
+            lab: selectedLabId || selectedLab?.name || '',
+            date: resDate,
+            startTime: startTime,
+            endTime: endTime
+        });
+        if (!validation.valid) {
+            showReservationErrors(validation.errors);
+            return;
+        }
+
+        if (!purpose) {
+            showReservationErrors(['Please enter a purpose for this reservation.']);
+            return;
+        }
 
         // Check for duplicate pending reservation
         const existing = getReservations().find(r => r.studentId === user.idNumber && r.status === 'pending');
         if (existing) {
-            showMessage('You already have a pending reservation. Please wait for admin review.', 'error');
+            showReservationErrors(['You already have a pending reservation. Please wait for admin review before submitting another.']);
             return;
         }
 
@@ -1322,6 +1468,7 @@ function openReserveModal(user) {
 
         if (result.success) {
             closeModal();
+            hideReservationErrors();
             showMessage('Reservation request submitted! Admin will review it shortly.', 'success');
         } else {
             showMessage('Failed to submit request. Please try again.', 'error');
@@ -5607,6 +5754,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         initLoginForm();
     } else if (currentPage === 'landingpage.html' || currentPage === '') {
         updateLandingPageForLoggedInUser();
+        loadDashboardLeaderboard();
+        const lbSearch = document.getElementById('leaderboard-search');
+        const lbSort = document.getElementById('leaderboard-sort');
+        if (lbSearch) lbSearch.addEventListener('input', loadDashboardLeaderboard);
+        if (lbSort) lbSort.addEventListener('change', loadDashboardLeaderboard);
     } else if (currentPage === 'editprofile.html') {
         initEditProfilePage();
     } else if (currentPage === 'feedbackpage.html') {
