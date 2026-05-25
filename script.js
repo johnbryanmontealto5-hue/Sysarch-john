@@ -1113,14 +1113,12 @@ function updateLandingPageForLoggedInUser() {
     const contentGrid = document.getElementById('content-grid');
     const featuresSection = document.getElementById('features-section');
     const howItWorksSection = document.getElementById('how-it-works-section');
-    const publicLeaderboardSection = document.getElementById('public-leaderboard-section');
 
     if (homeSection) homeSection.style.display = 'none';
     if (dashboardSection) dashboardSection.style.display = 'block';
     if (contentGrid) contentGrid.style.display = 'grid';
     if (featuresSection) featuresSection.style.display = 'none';
     if (howItWorksSection) howItWorksSection.style.display = 'none';
-    if (publicLeaderboardSection) publicLeaderboardSection.style.display = 'none';
 
     // Load announcements for logged-in users
     loadUserAnnouncements();
@@ -2655,76 +2653,6 @@ function loadUserLeaderboard() {
     }).join('');
 }
 
-function loadLandingLeaderboard() {
-    const listEl = document.getElementById('landing-leaderboard-list');
-    if (!listEl) return;
-
-    const records = getSitInRecords();
-    const users = getUsers();
-
-    const searchInput = document.getElementById('landing-leaderboard-search');
-    const sortSelect = document.getElementById('landing-leaderboard-sort');
-    const searchTerm = (searchInput?.value || '').toLowerCase();
-    const sortBy = sortSelect?.value || 'sessions';
-
-    const sessionCounts = {};
-    const sessionDurations = {};
-    records.forEach(r => {
-        if (!r.idNumber) return;
-        sessionCounts[r.idNumber] = (sessionCounts[r.idNumber] || 0) + 1;
-        if (r.startTime && r.endTime) {
-            const dur = new Date(r.endTime) - new Date(r.startTime);
-            if (!isNaN(dur) && dur > 0) {
-                sessionDurations[r.idNumber] = (sessionDurations[r.idNumber] || 0) + dur;
-            }
-        }
-    });
-
-    let leaderboard = Object.keys(sessionCounts).map(id => {
-        const user = users.find(u => u.idNumber === id);
-        return {
-            idNumber: id,
-            name: user ? `${user.firstName} ${user.lastName}` : id,
-            course: user?.course || 'N/A',
-            sessions: sessionCounts[id],
-            totalMinutes: Math.floor((sessionDurations[id] || 0) / 60000)
-        };
-    });
-
-    if (searchTerm) {
-        leaderboard = leaderboard.filter(e =>
-            e.name.toLowerCase().includes(searchTerm) ||
-            e.idNumber.toLowerCase().includes(searchTerm)
-        );
-    }
-
-    leaderboard.sort((a, b) => sortBy === 'hours' ? b.totalMinutes - a.totalMinutes : b.sessions - a.sessions);
-    leaderboard = leaderboard.slice(0, 10);
-
-    if (leaderboard.length === 0) {
-        listEl.innerHTML = '<p class="no-data-msg">No session data yet.</p>';
-        return;
-    }
-
-    listEl.innerHTML = leaderboard.map((entry, index) => {
-        const rankClass = index === 0 ? 'lb-rank-1' : index === 1 ? 'lb-rank-2' : index === 2 ? 'lb-rank-3' : '';
-        const hours = Math.floor(entry.totalMinutes / 60);
-        const mins = entry.totalMinutes % 60;
-        const durationStr = entry.totalMinutes > 0 ? (hours > 0 ? `${hours}h ${mins}m` : `${mins}m`) : '—';
-        return `<div class="lb-entry ${rankClass}">
-            <span class="lb-rank">#${index + 1}</span>
-            <div class="lb-info">
-                <span class="lb-name">${escapeHTML(entry.name)}</span>
-                <span class="lb-course">${escapeHTML(entry.course)} &bull; ID: ${escapeHTML(entry.idNumber)}</span>
-            </div>
-            <div class="lb-stats">
-                <span class="lb-sessions">${entry.sessions} session${entry.sessions !== 1 ? 's' : ''}</span>
-                <span class="lb-duration">${durationStr}</span>
-            </div>
-        </div>`;
-    }).join('');
-}
-
 async function syncStudentsFromSupabase() {
     const client = getSupabaseClient();
     if (!client) return;
@@ -3267,7 +3195,6 @@ function searchStudentForSitIn(idNumber) {
 
     // Show result section
     if (resultSection) resultSection.style.display = 'block';
-    if (noPendingMsg) noPendingMsg.style.display = 'none';
 
     // Populate student info
     document.getElementById('result-id-number').textContent = user.idNumber;
@@ -3279,16 +3206,11 @@ function searchStudentForSitIn(idNumber) {
     const currentSitIns = getCurrentSitIns();
     const hasActiveSession = currentSitIns.some(s => s.idNumber === idNumber && s.status === 'active');
     
-    const addBtn = document.getElementById('add-sitin-btn');
     if (hasActiveSession) {
         showMessage('Student already has an active session. Please check them out first.', 'error');
         if (noPendingMsg) {
             noPendingMsg.style.display = 'block';
             noPendingMsg.innerHTML = '<p>Student already has an active session.</p>';
-        }
-        if (addBtn) addBtn.disabled = true;
-        if (document.getElementById('manual-sitin-lab')) {
-            document.getElementById('manual-sitin-lab').innerHTML = '<option value="">-- No Labs Available --</option>';
         }
         return;
     }
@@ -3300,16 +3222,11 @@ function searchStudentForSitIn(idNumber) {
             noPendingMsg.style.display = 'block';
             noPendingMsg.innerHTML = '<p>Student has no remaining sessions.</p>';
         }
-        if (addBtn) addBtn.disabled = true;
-        if (document.getElementById('manual-sitin-lab')) {
-            document.getElementById('manual-sitin-lab').innerHTML = '<option value="">-- No Labs Available --</option>';
-        }
         return;
     }
 
     // Populate lab dropdown for walk-in
     populateAdminLabSelect();
-    if (addBtn) addBtn.disabled = false;
 }
 
 function populateLabSelectForRequest() {
@@ -3335,27 +3252,23 @@ function populateLabSelectForRequest() {
 
 function populateAdminLabSelect() {
     const labSelect = document.getElementById('manual-sitin-lab');
-    const addBtn = document.getElementById('add-sitin-btn');
-    if (!labSelect) {
-        if (addBtn) addBtn.disabled = true;
-        return;
-    }
+    if (!labSelect) return;
 
-    const labs = getAvailableLabs();
+    const labs = getLabRooms();
+    const availableLabs = labs.filter(lab => lab.status !== 'maintenance' && lab.currentOccupancy < lab.capacity);
 
-    if (labs.length === 0) {
+    if (availableLabs.length === 0) {
         labSelect.innerHTML = '<option value="">-- No Labs Available --</option>';
-        if (addBtn) addBtn.disabled = true;
         return;
     }
 
-    labs.sort((a, b) => a.name.localeCompare(b.name));
+    availableLabs.sort((a, b) => a.name.localeCompare(b.name));
+
     labSelect.innerHTML = '<option value="">-- Select Lab --</option>' +
-        labs.map(lab => {
+        availableLabs.map(lab => {
             const availableSeats = lab.capacity - lab.currentOccupancy;
             return `<option value="${lab.name}">${lab.name} (${availableSeats} seats available)</option>`;
         }).join('');
-    if (addBtn) addBtn.disabled = false;
 }
 
 // ============================================
@@ -5841,6 +5754,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         initLoginForm();
     } else if (currentPage === 'landingpage.html' || currentPage === '') {
 <<<<<<< HEAD
+<<<<<<< HEAD
         if (user) {
             updateLandingPageForLoggedInUser();
         } else {
@@ -5850,7 +5764,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (landingLbSearch) landingLbSearch.addEventListener('input', loadLandingLeaderboard);
             if (landingLbSort) landingLbSort.addEventListener('change', loadLandingLeaderboard);
         }
-=======
         updateLandingPageForLoggedInUser();
         loadDashboardLeaderboard();
         const lbSearch = document.getElementById('leaderboard-search');
@@ -5858,6 +5771,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (lbSearch) lbSearch.addEventListener('input', loadDashboardLeaderboard);
         if (lbSort) lbSort.addEventListener('change', loadDashboardLeaderboard);
 >>>>>>> 1e1d034c2067312de6fd3d4b8fa4407936ab39ad
+=======
+        updateLandingPageForLoggedInUser();
+>>>>>>> parent of 9918ebc (Add admin reservation page and public leaderboard section)
     } else if (currentPage === 'editprofile.html') {
         initEditProfilePage();
     } else if (currentPage === 'feedbackpage.html') {
