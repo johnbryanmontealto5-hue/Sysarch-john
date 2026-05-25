@@ -5753,8 +5753,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     } else if (currentPage === 'loginpage.html') {
         initLoginForm();
     } else if (currentPage === 'landingpage.html' || currentPage === '') {
-<<<<<<< HEAD
-<<<<<<< HEAD
         if (user) {
             updateLandingPageForLoggedInUser();
         } else {
@@ -5770,10 +5768,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         const lbSort = document.getElementById('leaderboard-sort');
         if (lbSearch) lbSearch.addEventListener('input', loadDashboardLeaderboard);
         if (lbSort) lbSort.addEventListener('change', loadDashboardLeaderboard);
->>>>>>> 1e1d034c2067312de6fd3d4b8fa4407936ab39ad
-=======
+
         updateLandingPageForLoggedInUser();
->>>>>>> parent of 9918ebc (Add admin reservation page and public leaderboard section)
     } else if (currentPage === 'editprofile.html') {
         initEditProfilePage();
     } else if (currentPage === 'feedbackpage.html') {
